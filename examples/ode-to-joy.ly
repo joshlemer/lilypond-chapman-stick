@@ -1,11 +1,12 @@
 \version "2.26.0"
 
-\include "src/lilypond-chapman-stick.ily"
+\include "lilypond-chapman-stick.ily"
 
 \header {
   title = "Ode to Joy"
   subtitle = "from Symphony no.9"
   composer = "Ludwig Van Beethoven (1770-1827)"
+  engraver = "Josh Lemer"
 }
 
 
@@ -31,14 +32,18 @@ bass = \fixed c, {
   c2-1 bes-4 | a-3 f-2 | e4-1 e-2 g-1 c-2 | g2-1 <c-1\2 e'-4\4 g-2\3>2 \bar "|."
 }
 
-\score {
-  \new ChapmanStickStaff \with {
-    stickTuning = \stickTwelveStringMatchedReciprocal
 
-    } <<
-    \new ChapmanStickMelodyStaff
-    \melody
-    \new ChapmanStickBassStaff
-    \bass
+\score {
+  \new ChapmanStickStaff \with { 
+    stickTuning = \stickTwelveStringMatchedReciprocal 
+    stickAutoFrets = ##t
+    stickAutoStrings = ##t
+  } <<
+    \new ChapmanStickMelodyStaff \melody
+    \new ChapmanStickBassStaff \bass
   >>
+}
+
+\paper {
+  tagline = ##f %% drop the "Music engraving by LilyPond" footer
 }
