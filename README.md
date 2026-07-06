@@ -42,13 +42,6 @@ See [](./examples/basic-scale-and-chord.ly)
 
 \include "lilypond-chapman-stick.ily"
 
-\header {
-  title = ""
-  subtitle = ""
-  composer = ""
-}
-
-
 melody = \fixed c {
   \clef "treble_8" 
   \time 4/4
@@ -81,20 +74,21 @@ bass = \fixed c, {
 
 ## Writing notes
 
-Each note is plain LilyPond plus optional post-events — no special note command:
+Pitches, finger, and string use standard Lilypond notation. Lilypod usually derives fret from the string and the pitch, but this library also adds an additional operator to explicitly annotate the fret. Examples of all 3 found below:
 
-| You write | Meaning |
+|Expression|Meaning| Image
 |---|---|
-| `c'` | pitch → staff position, and (with the tuning) the derived fret |
-| `c'\3` | on **string 3** (draws the box); fret derived from pitch |
-| `c'-2` | **middle finger** → diamond notehead (`-1`..`-4` = index/middle/ring/little) |
-| `c'\fr 12` | **fret 12** spelled out; the string (box) is derived from it |
-| `c'\fr X` | the **open** ("X") fret; `\fr 0` is the same |
-| `c'\5-1\fr 7` | pin all three explicitly |
-| `\onString 6 { a b c }` | put a whole run on string 6 |
+| `c` | C note (specifically C3), with no extra information | ![](docs/images/expressions/plain.png)
+| `c\1 c\2 c\3 c\4 c\5 c\6` | on **string 1,2,3,4**, draws string indicator box on line 3 from the top. | ![](docs/images/expressions/string_indicators.png)
+| `c-1 c-2 c-3 c-4` | **finger 1 (index), 2 (middle), 3 (ring), 4 (pinky)**  sets notehead to circle, diamond, triangle, square | ![](docs/images/expressions/finger_indicators.png)
+| `c\fr12 c\fr5` | **fret 12, fret 5**. Fret numbers placed above/below the staff. Note that space is allowed between `\fr` and the fret number | ![](docs/images/expressions/fret_indicators.png)
+| `c\fr X` or `c\fr0` | the "X" fret fret; `\fr 0 and \fr0` is the same. "X" requires a space between `\fr` and `"X"` | ![](docs/images/expressions/fret_x_indicator.png)
+| `c\5-1\fr7` | pin all three explicitly | ![](docs/images/expressions/all_indicators.png)
+| `<c-1\2\fr1 e'-4\4\fr2 g-2\3\fr3>` | apply all 3 to each note inside a chord | ![](docs/images/expressions/all_indicators_chord.png)
+| `\onString 6 { a4 b c d e f g a }` | put a whole run on string 6 | ![](docs/images/expressions/group_string_indicator.png)
 
-**Fret and string are complementary** — give either and the other is derived from
-the note's pitch (`fret = note − open string`):
+### Fret and string are complementary 
+give either and the other is derived from the note's pitch 
 
 - `\3` alone → shows the derived fret on string 3.
 - `\fr 12` alone → draws the box on whichever string plays that fret.
