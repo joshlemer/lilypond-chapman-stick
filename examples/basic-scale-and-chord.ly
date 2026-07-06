@@ -2,10 +2,13 @@
 
 \include "lilypond-chapman-stick.ily"
 
+
 \header {
-  title = ""
-  subtitle = ""
-  composer = ""
+  title = "Title"
+  subtitle = "Subtitle"
+  composer = "Composer"
+  arranger = "Arranger"
+
 }
 
 
@@ -14,7 +17,7 @@ melody = \fixed c {
   \time 4/4
   \key c \major
   
-  \tempo ""
+  %\tempo ""
   \slurUp
   
   f-1\5 g-2\5 a-1\4 b-2\4 | c'1-3\4

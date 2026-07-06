@@ -49,8 +49,8 @@
 %% ChapmanStickStaff braces the two halves (a Stick grand staff).  ChapmanStaff
 %% \alias Staff, so it also nests in StaffGroup / your own layout, takes any
 %% \with overrides, and works alone (put stickTuning on it directly).
-%% A tuning is a name string ("12StringClassic"), a variable
-%% (\stickTwelveStringClassic), an inline '(("D4"..)("C1"..)) SPN pair, or a
+%% A tuning is a built-in variable (\stickTwelveStringClassic), your own
+%% \makeStickTuning struct, an inline '(("D4"..)("C1"..)) SPN pair, or a
 %% single side's SPN list (top line -> bottom, C4 = middle C).
 %% ============================================================================
 
@@ -132,6 +132,25 @@
                                         ((#\#) (+ a 1)) ((#\b) (- a 1)) (else a)))
                         a))))
          (+ pc acc (* 12 (- oct 4)))))))
+
+%% Strict scientific-pitch-notation check: a letter A-G, then zero or more
+%% accidentals (# or b), then a MANDATORY octave (one or more digits) and nothing
+%% else -- "C4", "F#3", "Bb0".  A missing octave ("C"), bad letter, or trailing
+%% junk is rejected.  (Note: the octave must be a plain number; negative octaves
+%% like "C-1" aren't supported, matching stk-spn-split.)
+#(define (stk-valid-spn? s)
+   (and (string? s)
+        (let ((n (string-length s)))
+          (and (> n 0)
+               (memv (char-upcase (string-ref s 0)) '(#\A #\B #\C #\D #\E #\F #\G))
+               (let loop ((k 1))                       ; skip the accidental run
+                 (if (and (< k n) (memv (string-ref s k) '(#\# #\b)))
+                     (loop (+ k 1))
+                     (and (< k n)                       ; octave present ...
+                          (let digits ((j k))           ; ... and all digits
+                            (cond ((= j n) #t)
+                                  ((char-numeric? (string-ref s j)) (digits (+ j 1)))
+                                  (else #f))))))))))
 
 %% Centre (X) of a standard notehead glyph.  Our custom circle/diamond heads
 %% are drawn centred on the origin and then shifted to THIS point, so they line
@@ -487,8 +506,9 @@
 %%                             \override Beam.positions = #'(-4 . -4) }  % your tweaks
 %%     \relative c' { g'8\1-2 ... }
 %% or, inside a ChapmanStickStaff, put the tuning on the group and just \stickMelody
-%% / \stickBass on each staff.  A tuning is a name ("12StringClassic"), a variable
-%% (\stickTwelveStringClassic), an inline '((mel)(bass)) pair, or one side's list.
+%% / \stickBass on each staff.  A tuning is a built-in variable
+%% (\stickTwelveStringClassic), a \makeStickTuning struct, an inline '((mel)(bass))
+%% pair, or one side's list.
 
 %% Register ChapmanStaff + ChapmanStickStaff for every score (a top-level
 %% \layout sets defaults merged into each \score, so users need not touch their
@@ -535,87 +555,101 @@
 %% ChapmanStaff).  Octaves were
 %% resolved from tunings.yaml (melody descends top->bottom, bass ascends; the
 %% 12-string melodies that carry no anchor follow their 10-string sibling).
-#(define stk-tunings
+%% A TUNING is a small record (struct): its display NAME stored with the melody
+%% and bass open-string lists, so each \stick... variable (and any you build with
+%% \makeStickTuning) carries its own name.  Field access is via the generated
+%% accessors -- stk-tuning-name / -melody / -bass -- Scheme has no dot syntax.
+%% define-record-type is SRFI-9; LilyPond's Guile doesn't import it by default.
+#(use-modules (srfi srfi-9))
+#(define-record-type <stk-tuning>
+   (make-stk-tuning name melody bass)
+   stk-tuning?
+   (name   stk-tuning-name)
+   (melody stk-tuning-melody)
+   (bass   stk-tuning-bass))
+
+#(define stk-tuning-data
   '(;; --- 10-string (5 melody + 5 bass) ---
-    ("10StringMatchedReciprocal"          ("C4" "G3" "D3" "A2" "E2")           ("C1" "G1" "D2" "A2" "E3"))
-    ("10StringClassic"                    ("D4" "A3" "E3" "B2" "F#2")          ("C1" "G1" "D2" "A2" "E3"))
-    ("10StringBaritoneMelody"             ("A3" "E3" "B2" "F#2" "C#2")         ("C1" "G1" "D2" "A2" "E3"))
-    ("10StringDeepMatchedReciprocal"      ("Bb3" "F3" "C3" "G2" "D2")          ("Bb0" "F1" "C2" "G2" "D3"))
-    ("10StringRaisedMatchedReciprocal"    ("D4" "A3" "E3" "B2" "F#2")          ("D1" "A1" "E2" "B2" "F#3"))
-    ("10StringFullBaritone"               ("A3" "E3" "B2" "F#2" "C#2")         ("D1" "A1" "E2" "B2" "F#3"))
-    ("10StringDualBassReciprocal"         ("C4" "G3" "D3" "A2" "E2")           ("B0" "F#1" "C#2" "G#2" "D#3"))
-    ("10StringAlto"                       ("G4" "D4" "A3" "E3" "B2")           ("C2" "G2" "D3" "A3" "E4"))
-    ("10StringGregHowardExtendedAlto"     ("A4" "E4" "B3" "F#3" "C#3")         ("C2" "G2" "D3" "A3" "E4"))
-    ("10StringBobCulbertsonExpandedAlto"  ("A4" "E4" "B3" "F#3" "C#3")         ("A2" "E3" "B3" "F#4" "C#5"))
+    ("10-String Matched Reciprocal"          ("C4" "G3" "D3" "A2" "E2")           ("C1" "G1" "D2" "A2" "E3"))
+    ("10-String Classic"                    ("D4" "A3" "E3" "B2" "F#2")          ("C1" "G1" "D2" "A2" "E3"))
+    ("10-String Baritone Melody"             ("A3" "E3" "B2" "F#2" "C#2")         ("C1" "G1" "D2" "A2" "E3"))
+    ("10-String Deep Matched Reciprocal"      ("Bb3" "F3" "C3" "G2" "D2")          ("Bb0" "F1" "C2" "G2" "D3"))
+    ("10-String Raised Matched Reciprocal"    ("D4" "A3" "E3" "B2" "F#2")          ("D1" "A1" "E2" "B2" "F#3"))
+    ("10-String Full Baritone"               ("A3" "E3" "B2" "F#2" "C#2")         ("D1" "A1" "E2" "B2" "F#3"))
+    ("10-String Dual Bass Reciprocal"         ("C4" "G3" "D3" "A2" "E2")           ("B0" "F#1" "C#2" "G#2" "D#3"))
+    ("10-String Alto"                       ("G4" "D4" "A3" "E3" "B2")           ("C2" "G2" "D3" "A3" "E4"))
+    ("10-String Greg Howard Extended Alto"     ("A4" "E4" "B3" "F#3" "C#3")         ("C2" "G2" "D3" "A3" "E4"))
+    ("10-String Bob Culbertson Expanded Alto"  ("A4" "E4" "B3" "F#3" "C#3")         ("A2" "E3" "B3" "F#4" "C#5"))
     ;; --- 12-string (6 melody + 6 bass) ---
-    ("12StringMatchedReciprocal"          ("C4" "G3" "D3" "A2" "E2" "B1")      ("C1" "G1" "D2" "A2" "E3" "B3"))
-    ("12StringClassic"                    ("D4" "A3" "E3" "B2" "F#2" "C#2")    ("C1" "G1" "D2" "A2" "E3" "B3"))
-    ("12StringMatchedReciprocalHighBass4th" ("C4" "G3" "D3" "A2" "E2" "B1")    ("C1" "G1" "D2" "A2" "E3" "A3"))
-    ("12StringClassicHighBass4th"         ("C4" "G3" "D3" "A2" "E2" "A1")      ("C1" "G1" "D2" "A2" "E3" "A3"))
-    ("12StringDeepMatchedReciprocal"      ("Bb3" "F3" "C3" "G2" "D2" "A1")     ("Bb0" "F1" "C2" "G2" "D3" "A3"))
-    ("12StringDualBassReciprocal"         ("F4" "C4" "G3" "D3" "A2" "E2")      ("B0" "F#1" "C#2" "G#2" "D#3" "A#3"))
-    ("12StringMirrored4ths"               ("C4" "G3" "D3" "A2" "E2" "B1")      ("E1" "A1" "D2" "G2" "C3" "F3"))))
+    ("12-String Matched Reciprocal"          ("C4" "G3" "D3" "A2" "E2" "B1")      ("C1" "G1" "D2" "A2" "E3" "B3"))
+    ("12-String Classic"                    ("D4" "A3" "E3" "B2" "F#2" "C#2")    ("C1" "G1" "D2" "A2" "E3" "B3"))
+    ("12-String Matched Reciprocal High Bass 4th" ("C4" "G3" "D3" "A2" "E2" "B1")    ("C1" "G1" "D2" "A2" "E3" "A3"))
+    ("12-String Classic High Bass 4th"         ("C4" "G3" "D3" "A2" "E2" "A1")      ("C1" "G1" "D2" "A2" "E3" "A3"))
+    ("12-String Deep Matched Reciprocal"      ("Bb3" "F3" "C3" "G2" "D2" "A1")     ("Bb0" "F1" "C2" "G2" "D3" "A3"))
+    ("12-String Dual Bass Reciprocal"         ("F4" "C4" "G3" "D3" "A2" "E2")      ("B0" "F#1" "C#2" "G#2" "D#3" "A#3"))
+    ("12-String Mirrored 4ths"               ("C4" "G3" "D3" "A2" "E2" "B1")      ("E1" "A1" "D2" "G2" "C3" "F3"))))
 
-#(define (stk-tuning-lookup name)
-   (or (assoc name stk-tunings)
-       (ly:error "stafftab: unknown tuning ~s -- see stk-tunings for the list" name)))
+%% Build the tuning structs from the source data, used to define the \stick...
+%% variables below.
+#(define stk-tunings
+   (map (lambda (e) (apply make-stk-tuning e)) stk-tuning-data))
 
-%% Expose every standard tuning as a LilyPond VARIABLE, so it can be used by name
-%% without quotes:  \stickTwelveStringClassic  ->  (("D4" ...) ("C1" ...)).  A
-%% \-identifier is LETTERS ONLY (no digits), so digits in the tuning name are
-%% spelled out (12 -> Twelve, 10 -> Ten, 4 -> Four) and a "stick" prefix is added.
-%% Generated from the table so there's no second copy to maintain; usable
-%% anywhere a tuning is taken -- e.g. \with { tuning = \stickTwelveStringClassic }.
+%% Expose every standard tuning as a LilyPond VARIABLE, so it can be used without
+%% quotes:  \stickTwelveStringClassic -> its tuning struct.  A \-identifier is
+%% LETTERS ONLY, so the variable name is the tuning name with digit runs spelled
+%% out (12 -> Twelve, 10 -> Ten, 4 -> Four), spaces/hyphens dropped, "stick"
+%% prefixed:  "12-String Classic" -> \stickTwelveStringClassic.
 #(define (stk-num->word n)
    (case n ((4) "Four") ((10) "Ten") ((12) "Twelve") (else (number->string n))))
-#(define (stk-alpha-name s)                  ; digit runs -> words (legal \-id)
-   (let ((len (string-length s)) (out '()))
+#(define (stk-alpha-name s)                  ; -> legal \-id: spell digit runs,
+   (let ((len (string-length s)) (out '()))  ; keep letters, drop spaces/hyphens
      (let loop ((i 0))
        (if (>= i len)
            (apply string-append (reverse out))
-           (if (char-numeric? (string-ref s i))
-               (let dl ((j i) (acc 0))
-                 (if (and (< j len) (char-numeric? (string-ref s j)))
-                     (dl (+ j 1) (+ (* acc 10) (- (char->integer (string-ref s j)) 48)))
-                     (begin (set! out (cons (stk-num->word acc) out)) (loop j))))
-               (begin (set! out (cons (string (string-ref s i)) out))
-                      (loop (+ i 1))))))))
+           (let ((c (string-ref s i)))
+             (cond ((char-numeric? c)
+                    (let dl ((j i) (acc 0))
+                      (if (and (< j len) (char-numeric? (string-ref s j)))
+                          (dl (+ j 1) (+ (* acc 10) (- (char->integer (string-ref s j)) 48)))
+                          (begin (set! out (cons (stk-num->word acc) out)) (loop j)))))
+                   ((char-alphabetic? c)
+                    (set! out (cons (string c) out)) (loop (+ i 1)))
+                   (else (loop (+ i 1)))))))))
 #(for-each
-  (lambda (entry)
-    (ly:parser-define! (string->symbol (string-append "stick" (stk-alpha-name (car entry))))
-                       (cdr entry)))
+  (lambda (t)
+    (ly:parser-define! (string->symbol (string-append "stick" (stk-alpha-name (stk-tuning-name t))))
+                       t))
   stk-tunings)
 
-%% Register a custom tuning ONCE, by name, then reuse it by name anywhere.
-%% Strings are open pitches in scientific pitch notation (C4 = middle C):
-%%   \addStickTuning "MyStick" #'("D4" "A3" "E3" "B2" "F#2" "C#2")
-%%                             #'("C1" "G1" "D2" "A2" "E3" "B3")
-%%   ... \with { stickTuning = "MyStick" }
-addStickTuning =
-#(define-void-function (name melody bass) (string? list? list?)
-   (set! stk-tunings (cons (list name melody bass) stk-tunings)))
+%% Build your OWN tuning struct and use it exactly like the built-in \stick...
+%% variables.  Strings are open pitches in scientific pitch notation (C4 = middle
+%% C), melody then bass, each ordered top line -> bottom:
+%%   myStick = \makeStickTuning "My Stick" #'("D4" "A3" "E3" "B2" "F#2" "C#2")
+%%                                         #'("C1" "G1" "D2" "A2" "E3" "B3")
+%%   \with { stickTuning = \myStick }                      %% on a staff or group
+%%   \header { instrument = \stickTuningName #myStick }    %% pull its name
+%%   #(stk-tuning-melody myStick)                          %% or any field, in Scheme
+makeStickTuning =
+#(define-scheme-function (name melody bass) (string? list? list?)
+   (for-each
+    (lambda (s)
+      (unless (stk-valid-spn? s)
+        (ly:error "stafftab: tuning ~s has ~s, which is not scientific pitch notation (expected e.g. \"C4\", \"F#3\", \"Bb0\" -- a letter, optional #/b, and a required octave)" name s)))
+    (append melody bass))
+   (make-stk-tuning name melody bass))
 
-%% Resolve a tuning argument into (melody-names bass-names).  Accepts either a
-%% STANDARD TUNING NAME (string, looked up in stk-tunings) or an inline custom
-%% tuning given as the two name lists  '((melody...) (bass...))  -- so a whole
-%% Stick tuning is declared in ONE place and shared by both staves.
-#(define (stk-resolve-tuning t)
-   (cond ((string? t) (cdr (stk-tuning-lookup t)))
-         ((and (list? t) (= (length t) 2) (list? (car t)) (list? (cadr t))) t)
-         (else (ly:error
-                 "stafftab: tuning must be a name string or '((melody) (bass)) lists, got ~s" t))))
-
-%% Resolve any tuning form to ONE side's open-string pitch list (top -> bottom):
-%%   a name string ("12StringClassic")   -> that side of the named tuning
-%%   a '((mel)(bass)) pair / variable     -> that side
-%%   a flat list of SPN strings           -> used as-is (already this side)
+%% One side's open-string pitch list (top -> bottom) from a tuning:
+%%   a \stick... / \makeStickTuning struct -> that side of the struct
+%%   an inline '((mel)(bass)) pair         -> that side
+%%   a flat list of SPN strings            -> used as-is (a lone staff's own side)
 #(define (stk-side-pitches tuning up)
-   (cond ((string? tuning)
-          (let ((p (stk-resolve-tuning tuning))) (if up (car p) (cadr p))))
-         ((and (pair? tuning) (list? (car tuning)))     ; ((mel) (bass))
+   (cond ((stk-tuning? tuning)
+          (if up (stk-tuning-melody tuning) (stk-tuning-bass tuning)))
+         ((and (pair? tuning) (list? (car tuning)))     ; inline ((mel) (bass)) pair
           (if up (car tuning) (cadr tuning)))
-         ((list? tuning) tuning)                        ; this side's pitches
+         ((list? tuning) tuning)                        ; a lone staff's own side list
          (else (ly:error "stafftab: bad tuning ~s" tuning))))
+
 
 %% \with side markers for a ChapmanStaff.  The staff reads its `stickTuning`
 %% (inherited from the enclosing ChapmanStickStaff, or set on the staff itself)
