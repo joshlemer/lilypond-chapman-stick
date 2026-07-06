@@ -1,0 +1,15 @@
+# LilyPond output
+*.pdf
+*.ps
+*.png
+*.midi
+*.mid
+*.eps
+*.count
+*.tex
+*.texi
+*.log
+
+# Editor / OS cruft
+*~
+.DS_Store

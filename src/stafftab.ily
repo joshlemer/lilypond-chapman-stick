@@ -1,7 +1,8 @@
 \version "2.26.0"
 
 %% ============================================================================
-%% lilypond-stafftab -- StaffTab notation for the Chapman Stick in LilyPond
+%% lilypond-chapman-stick -- StaffTab notation for the Chapman Stick in LilyPond
+%% Version 1.0.0  .  Requires LilyPond 2.26+  .  Public domain (CC0-1.0)
 %%
 %% \include this file, then use \new ChapmanStickStaff / \new ChapmanStaff.
 %% ============================================================================
