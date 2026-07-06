@@ -1,48 +1,35 @@
-# lilypond-chapman-stick
+# Lilypond-chapman-stick
 
-**StaffTab notation for the [Chapman Stick](https://en.wikipedia.org/wiki/Chapman_Stick) in [LilyPond](https://lilypond.org).**
-
-StaffTab writes Stick music on ordinary staves but adds the instrument-specific
-information a Stick player needs — **which string**, **which finger**, and **which
-fret** — directly onto the notes, deriving whatever you don't spell out.
-
-- **String** → a hollow box drawn on that string's staff line.
-- **Finger** → the notehead's *shape* (index = circle, middle = diamond, ring =
-  triangle, little = square); fill follows duration as usual.
-- **Fret** → a number above the melody staff / below the bass staff, **derived
-  automatically** from the note's pitch and its string (or spell it out).
-- Each staff line is **labelled** with its open-string pitch.
+**StaffTab notation library for the [Chapman Stick](https://en.wikipedia.org/wiki/Chapman_Stick) in [LilyPond](https://lilypond.org).**
 
 Requires **LilyPond 2.26** or newer. Public domain (**CC0-1.0**).
 
----
+![A basic scale and chord in StaffTab notation](screenshots/basic-scale-and-chord.png)
 
-## Install
+[StaffTab](https://en.wikipedia.org/wiki/Chapman_Stick#Notation) is a notation system developed by Emmett Chapman and Greg Howard for the Chapman Stick. As on piano, music is written on the grand staff and the left hand plays the bottom staff (called the bass staff), while the right hand plays the top staff (called the melody staff). The music is written one octave lower than it sounds. Lilypond-chapman-stick makes this explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs). The system incorporates **string**, **fret**, and **finger** information into standard music notation.:
 
-The library is a single file, `src/stafftab.ily`. Two ways to use it:
-
-**A. Point LilyPond at the `src` directory** (keeps your score's include line clean):
-
-```sh
-lilypond -I /path/to/lilypond-chapman-stick/src your-score.ly
-```
-```lilypond
-\include "stafftab.ily"
-```
-
-**B. Reference it by path** (no flags needed):
-
-```lilypond
-\include "/path/to/lilypond-chapman-stick/src/stafftab.ily"
-```
-
-Then compile the bundled example to see it working:
-
-```sh
-lilypond -o demo demo.ly       # demo.ly uses \include "src/stafftab.ily"
-```
+- **String**: a hollow box drawn on the staff line that corresponds to the string on the instrument, as indicated by the labeled lines on the left of the staff. 
+- **Finger**: the notehead's *shape* (index = circle, middle = diamond, ring =
+  triangle, pinky = square); fill follows duration as usual. 
+- **Fret**: a number above the melody staff / below the bass staff
 
 ---
+
+## Installation
+
+Download the latest release and unzip it in your desired location.
+
+Add the unzipped folder to Lilypond's path. This can be done in [Frescrobaldi](https://frescobaldi.org/) as follows.
+
+1. Inside Frescobaldi, open the Preferences window by selecting from the top menu: **File -> Preferences**
+
+![](docs/images/installation/02.png)
+
+2. Navigate to the **LilyPond** preferences on the left hand side
+
+![](docs/images/installation/03.png)
+
+3. On the bottom right, in the **LilyPond Include Path** section, click **+ Add...**, and add the 
 
 ## Quick start
 

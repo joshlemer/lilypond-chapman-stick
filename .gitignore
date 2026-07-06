@@ -1,7 +1,7 @@
 # LilyPond output
 *.pdf
 *.ps
-*.png
+# *.png
 *.midi
 *.mid
 *.eps
@@ -9,6 +9,15 @@
 *.tex
 *.texi
 *.log
+
+examples/*.pdf
+
+# ...but keep committed doc screenshots
+!screenshots/
+!screenshots/*.png
+
+# Build output
+out/
 
 # Editor / OS cruft
 *~

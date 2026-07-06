@@ -2,7 +2,7 @@
 
 %% ============================================================================
 %% lilypond-chapman-stick -- StaffTab notation for the Chapman Stick in LilyPond
-%% Version 1.0.0  .  Requires LilyPond 2.26+  .  Public domain (CC0-1.0)
+%% Requires LilyPond 2.26+  .  Public domain (CC0-1.0)
 %%
 %% \include this file, then use \new ChapmanStickStaff / \new ChapmanStaff.
 %% ============================================================================
@@ -444,10 +444,13 @@
              ;; auto-clears the staff and any ledger notes, reserves vertical
              ;; space so consecutive systems get a small gap only where a fret
              ;; row exists, and needs no fragile staff-position math (which isn't
-             ;; available this early anyway).  staff-padding keeps a small, even
-             ;; gap from the staff so level passages read as a straight row.
+             ;; available this early anyway).  staff-padding sets the baseline
+             ;; distance from the staff: it must clear the tallest STEM under the
+             ;; row, otherwise stems poke above it and the numbers stagger note by
+             ;; note instead of reading as one straight row.  (Raise it if a
+             ;; high-stem passage still staggers; lower it to sit closer.)
              (ly:grob-set-property! label 'outside-staff-priority 350)
-             (ly:grob-set-property! label 'staff-padding 1.2))))
+             (ly:grob-set-property! label 'staff-padding 3.5))))
        (set! heads '())))))
 
 %% ---- per-line string labels (printed to the left of each clef) ----------
