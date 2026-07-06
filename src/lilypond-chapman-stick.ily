@@ -41,14 +41,15 @@
 %% (the plain circled number / digit is suppressed).
 %%
 %% STAVES -- make Stick staves like any other; declare the tuning ONCE on the
-%% group and each staff just marks its side:
+%% group and use the melody / bass staff for each half:
 %%   \new ChapmanStickStaff \with { stickTuning = \stickTwelveStringClassic } <<
-%%     \new ChapmanStaff \with { \stickMelody } \melodyMusic
-%%     \new ChapmanStaff \with { \stickBass }   \bassMusic
+%%     \new ChapmanStickMelodyStaff \melodyMusic
+%%     \new ChapmanStickBassStaff   \bassMusic
 %%   >>
-%% ChapmanStickStaff braces the two halves (a Stick grand staff).  ChapmanStaff
-%% \alias Staff, so it also nests in StaffGroup / your own layout, takes any
-%% \with overrides, and works alone (put stickTuning on it directly).
+%% ChapmanStickStaff braces the two halves (the whole instrument).  The staves
+%% \alias Staff, so they also nest in StaffGroup / your own layout and take any
+%% \with overrides.  (A generic ChapmanStaff + \stickMelody / \stickBass is also
+%% available for manual side control.)
 %% A tuning is a built-in variable (\stickTwelveStringClassic), your own
 %% \makeStickTuning struct, an inline '(("D4"..)("C1"..)) SPN pair, or a
 %% single side's SPN list (top line -> bottom, C4 = middle C).
@@ -101,7 +102,7 @@
              (if v (variable-set! v (cons sym (variable-ref v))))))
          '(all-translation-properties all-user-translation-properties))))
     (list (list 'stickTuning scheme?
-                "StaffTab: this staff/group's tuning (name, SPN pitch pair, or side list)")
+                "StaffTab: this staff/group's tuning (a \\stick... struct, SPN pitch pair, or side list)")
           (list 'stickSide symbol?
                 "StaffTab: which half this staff is -- 'up (melody) or 'down (bass)")
           (list 'stickAutoFret boolean?
@@ -272,16 +273,6 @@
                head))
          raw)))
 
-%% ---- finger -> notehead style -------------------------------------------
-%% Maps a fingering digit char (1..4, from a -1..-4 post-event) to the notehead
-%% style the stencil draws.  (Letters kept as aliases in case a caller uses them.)
-#(define (stk-finger-style ch)              ; finger digit -> notehead style
-   (case ch ((#\i #\1) 'circle)          ; index  1
-            ((#\m #\2) 'stk-diamond)     ; middle 2  (our square-on-corner diamond)
-            ((#\a #\3) 'doThin)          ; ring   3
-            ((#\c #\4) 'laThin)          ; little 4
-            (else 'default)))
-
 %% ---- \1..\6 / -1..-4 reader ----------------------------------------------
 %% LilyPond's own string-number (\1..\6) and fingering (-1..-4) post-events ride
 %% along in each note's `articulations`.  This Staff-level engraver reads them
@@ -295,9 +286,17 @@
 %% Apply a fingering digit (1..4) to a note head as a StaffTab shape, unless the
 %% head already carries an explicit style.
 #(define (stk-shape-head! head digit)
+   ;; a fingering digit/letter (1..4 or i/m/a/c) -> the notehead style the stencil
+   ;; draws (letters kept as aliases in case a caller uses them).
+   (define (finger-style ch)
+     (case ch ((#\i #\1) 'circle)          ; index  1
+              ((#\m #\2) 'stk-diamond)     ; middle 2  (square-on-corner diamond)
+              ((#\a #\3) 'doThin)          ; ring   3
+              ((#\c #\4) 'laThin)          ; little 4
+              (else 'default)))
    (when (and (integer? digit) (ly:grob? head)
               (eq? 'default (ly:grob-property head 'style 'default)))
-     (let ((sty (stk-finger-style (integer->char (+ 48 digit)))))
+     (let ((sty (finger-style (integer->char (+ 48 digit)))))
        (unless (eq? sty 'default)
          (ly:grob-set-property! head 'style sty)
          (when (memq sty '(circle stk-diamond))
@@ -415,19 +414,14 @@
 %% top string (1) first, matching the tuning's top->bottom definition -- and emit
 %% ONE TextScript ("5.5.7") anchored to their note column.  Direction (above the
 %% melody staff / below the bass staff) follows the `stickSide` context property.
-%% Render a stored fret value: 0 is the Stick's open position, shown as "X"
-%% (frets read X, 1, 2, 3, ...); every other value prints as its number.
-#(define (stk-fret->string f)
-   (if (= f 0) "X" (number->string f)))
-
-%% String number of a fretted notehead, for TOP-STRING -> BOTTOM-STRING ordering.
-%% By this point the string is set (explicit \1..\6 or derived in the input
-%% engraver, which runs first); a fret with no resolvable string sorts last.
-#(define (stk-head-string h)
-   (let ((s (ly:grob-property h 'stk-string #f)))
-     (if (integer? s) s 1000)))
-
 #(define (Stk_fret_engraver context)
+   ;; render a fret value: 0 is the Stick's open position, shown "X" (frets read
+   ;; X, 1, 2, 3, ...); every other value prints as its number.
+   (define (fret->string f) (if (= f 0) "X" (number->string f)))
+   ;; string number of a fretted head, for TOP-STRING -> BOTTOM-STRING ordering;
+   ;; by now the string is set (explicit or derived); an unresolved one sorts last.
+   (define (head-string h)
+     (let ((s (ly:grob-property h 'stk-string #f))) (if (integer? s) s 1000)))
    (let ((heads '()))
      (make-engraver
       (acknowledgers
@@ -437,10 +431,10 @@
        (let ((fretted (filter (lambda (h) (ly:grob-property h 'stk-fret #f)) heads)))
          (when (pair? fretted)
            (let* ((sorted (sort fretted
-                            (lambda (a b) (< (stk-head-string a)
-                                             (stk-head-string b)))))
+                            (lambda (a b) (< (head-string a)
+                                             (head-string b)))))
                   (txt    (string-join
-                            (map (lambda (h) (stk-fret->string (ly:grob-property h 'stk-fret)))
+                            (map (lambda (h) (fret->string (ly:grob-property h 'stk-fret)))
                                  sorted) "."))
                   (nh     (car sorted))                 ; head on the top string
                   (col    (ly:grob-parent nh X))        ; its NoteColumn
@@ -449,6 +443,9 @@
                               DOWN UP)))
              (ly:grob-set-property! label 'text (make-simple-markup txt))
              (ly:grob-set-property! label 'direction d)
+             ;; A touch smaller than melody text: fret numbers read as annotations,
+             ;; and the narrower glyphs reduce collisions between adjacent labels.
+             (ly:grob-set-property! label 'font-size -1.5)
              ;; Centre the label's INK on the notehead's centre, both measured in
              ;; the NoteColumn frame.  We compute the offset ourselves (target
              ;; minus half the label's own width) because setting X-offset to a
@@ -497,53 +494,85 @@
           (strut (make-with-dimensions-markup (cons 0.0 0.0) (cons (- m) m) (make-null-markup))))
      (make-fontsize-markup -6 (make-overlay-markup (cons strut rows)))))
 
-%% ---- the ChapmanStaff / ChapmanStickStaff contexts -----------------------
-%% ChapmanStaff bakes in everything tuning-INDEPENDENT (the two engravers plus
-%% the notehead / label cosmetics), so you create a Stick staff like any other
-%% and stay in control -- \alias Staff, nests in StaffGroup / PianoStaff, takes
-%% any \with overrides:
-%%   \new ChapmanStaff \with { stickTuning = \stickTwelveStringClassic \stickMelody
-%%                             \override Beam.positions = #'(-4 . -4) }  % your tweaks
-%%     \relative c' { g'8\1-2 ... }
-%% or, inside a ChapmanStickStaff, put the tuning on the group and just \stickMelody
-%% / \stickBass on each staff.  A tuning is a built-in variable
-%% (\stickTwelveStringClassic), a \makeStickTuning struct, an inline '((mel)(bass))
-%% pair, or one side's list.
+%% ---- the Chapman Stick contexts ------------------------------------------
+%% Shared, tuning-INDEPENDENT staff behaviour (the two engravers plus the
+%% notehead / label cosmetics), spliced into each staff context below so there is
+%% a single copy.
+stickStaffBehaviour = \with {
+  %% read \1..\6 / -1..-4 / \fr into stk-string / notehead style / stk-fret;
+  %% consist the input reader BEFORE the fret engraver so a \fr fret (resolved at
+  %% end of timestep) is in place when the fret label is emitted.
+  \consists #Stk_input_engraver
+  \consists #Stk_fret_engraver
+  \override InstrumentName.self-alignment-X = #RIGHT   % hug the clef
+  \override InstrumentName.padding = #0.3
+  %% Route EVERY notehead through our stencil (harmless for plain notes -- it
+  %% falls back to the default head) so a bare \1..\6 / -1..-4 still shapes it.
+  \override NoteHead.stencil = #stk-note-stencil
+  %% ...and hide LilyPond's built-in string-number circle and fingering digit:
+  %% \1..\6 and -1..-4 are repurposed as StaffTab string bars / head shapes.
+  \override StringNumber.stencil = ##f
+  \override Fingering.stencil = ##f
+}
 
-%% Register ChapmanStaff + ChapmanStickStaff for every score (a top-level
-%% \layout sets defaults merged into each \score, so users need not touch their
-%% own \layout).  ChapmanStickStaff groups a melody+bass pair (so one tuning can
-%% be shared) with a plain system-start bar -- no piano brace.
+%% Three single staves, all \alias Staff (so they nest in StaffGroup / PianoStaff
+%% / your own layout and take any \with overrides):
+%%   ChapmanStickMelodyStaff / ChapmanStickBassStaff -- the melody / bass half with
+%%     the side baked in; just hand it music, no \stickMelody / \stickBass needed.
+%%   ChapmanStaff -- generic; YOU pick the side with \stickMelody / \stickBass (for
+%%     full manual control, or a staff you configure yourself).
+%% ChapmanStickStaff braces a melody+bass pair (the whole instrument, one shared
+%% tuning) with a plain system-start bar -- no piano brace:
+%%   \new ChapmanStickStaff \with { stickTuning = \stickTwelveStringClassic } <<
+%%     \new ChapmanStickMelodyStaff \melodyMusic
+%%     \new ChapmanStickBassStaff   \bassMusic
+%%   >>
+%% A tuning is a built-in variable (\stickTwelveStringClassic), a \makeStickTuning
+%% struct, an inline '((mel)(bass)) pair, or one side's list; set it on the group
+%% or on a lone staff.  A top-level \layout registers these for every \score, so
+%% users need not touch their own \layout.
 \layout {
   \context {
-    \Staff
-    \name ChapmanStaff
-    \alias Staff
-    %% read \1..\6 / -1..-4 / \fr into stk-string / notehead style / stk-fret;
-    %% consist this BEFORE the fret engraver so a \fr fret (resolved at end of
-    %% timestep) is in place when the fret label is emitted.
-    \consists #Stk_input_engraver
-    \consists #Stk_fret_engraver
-    \override InstrumentName.self-alignment-X = #RIGHT   % hug the clef
-    \override InstrumentName.padding = #0.3
-    %% Route EVERY notehead through our stencil (harmless for plain notes -- it
-    %% falls back to the default head) so a bare \1..\6 / -1..-4 still shapes it.
-    \override NoteHead.stencil = #stk-note-stencil
-    %% ...and hide LilyPond's built-in string-number circle and fingering digit:
-    %% \1..\6 and -1..-4 are repurposed as StaffTab string bars / head shapes.
-    \override StringNumber.stencil = ##f
-    \override Fingering.stencil = ##f
+    \Staff \name ChapmanStaff \alias Staff
+    \stickStaffBehaviour
+  }
+  \context {
+    \Staff \name ChapmanStickMelodyStaff \alias Staff
+    \stickStaffBehaviour
+    stickSide = #'up                       %% melody half -- strings/frets go UP
+  }
+  \context {
+    \Staff \name ChapmanStickBassStaff \alias Staff
+    \stickStaffBehaviour
+    stickSide = #'down                     %% bass half -- strings/frets go DOWN
   }
   \context {
     \PianoStaff
     \name ChapmanStickStaff
+    \accepts ChapmanStickMelodyStaff
+    \accepts ChapmanStickBassStaff
     \accepts ChapmanStaff
-    \defaultchild ChapmanStaff
+    \defaultchild ChapmanStickMelodyStaff
     %% no piano brace -- just the plain system-start bar (as ungrouped staves get)
     \override SystemStartBrace.stencil = ##f
     systemStartDelimiter = #'SystemStartBar
   }
-  \context { \Score \accepts ChapmanStaff \accepts ChapmanStickStaff }
+  \context {
+    \Score
+    \accepts ChapmanStaff
+    \accepts ChapmanStickMelodyStaff
+    \accepts ChapmanStickBassStaff
+    \accepts ChapmanStickStaff
+  }
+}
+
+%% Fret numbers hang BELOW the bass staff and ABOVE the melody staff, so between
+%% two systems a bass fret row can bump into the next system's melody fret row.
+%% Give systems a little extra default breathing room.  This is a top-level
+%% \paper default, so a user's own \paper (which follows the \include) overrides
+%% it -- bump the padding there if a very dense fret passage still overlaps.
+\paper {
+  system-system-spacing.padding = #4
 }
 
 %% ---- standard Chapman Stick tunings --------------------------------------
@@ -599,10 +628,10 @@
 %% LETTERS ONLY, so the variable name is the tuning name with digit runs spelled
 %% out (12 -> Twelve, 10 -> Ten, 4 -> Four), spaces/hyphens dropped, "stick"
 %% prefixed:  "12-String Classic" -> \stickTwelveStringClassic.
-#(define (stk-num->word n)
-   (case n ((4) "Four") ((10) "Ten") ((12) "Twelve") (else (number->string n))))
 #(define (stk-alpha-name s)                  ; -> legal \-id: spell digit runs,
-   (let ((len (string-length s)) (out '()))  ; keep letters, drop spaces/hyphens
+   (define (num->word n)                     ; keep letters, drop spaces/hyphens
+     (case n ((4) "Four") ((10) "Ten") ((12) "Twelve") (else (number->string n))))
+   (let ((len (string-length s)) (out '()))
      (let loop ((i 0))
        (if (>= i len)
            (apply string-append (reverse out))
@@ -611,7 +640,7 @@
                     (let dl ((j i) (acc 0))
                       (if (and (< j len) (char-numeric? (string-ref s j)))
                           (dl (+ j 1) (+ (* acc 10) (- (char->integer (string-ref s j)) 48)))
-                          (begin (set! out (cons (stk-num->word acc) out)) (loop j)))))
+                          (begin (set! out (cons (num->word acc) out)) (loop j)))))
                    ((char-alphabetic? c)
                     (set! out (cons (string c) out)) (loop (+ i 1)))
                    (else (loop (+ i 1)))))))))
@@ -650,16 +679,27 @@ makeStickTuning =
          ((list? tuning) tuning)                        ; a lone staff's own side list
          (else (ly:error "stafftab: bad tuning ~s" tuning))))
 
+%% NAME of a tuning as a plain string, for titles / headers / etc.  A \stick... or
+%% \makeStickTuning struct yields its stored name; a bare string passes through;
+%% anything else -> "custom".
+#(define (stk-name-of t)
+   (cond ((stk-tuning? t) (stk-tuning-name t))
+         ((string? t) t)
+         (else "custom")))
 
-%% \with side markers for a ChapmanStaff.  The staff reads its `stickTuning`
-%% (inherited from the enclosing ChapmanStickStaff, or set on the staff itself)
-%% plus its side and configures the lines / labels / fret side at run time:
-%%   \new ChapmanStickStaff \with { stickTuning = \stickTwelveStringClassic } <<
-%%     \new ChapmanStaff \with { \stickMelody } \melodyMusic
-%%     \new ChapmanStaff \with { \stickBass }   \bassMusic
-%%   >>
-%% For a lone staff, set the tuning on it too:
-%%   \new ChapmanStaff \with { stickTuning = \stickTwelveStringClassic \stickMelody } ...
+%% \stickTuningName <tuning> -> that tuning's name as markup, so it drops straight
+%% into a \header / instrumentName field.  Pass the scheme value WITH # (not \) --
+%% a \stick... variable or \makeStickTuning struct:
+%%   instrumentName = \markup { "Chapman Stick in " \stickTuningName #myStick }
+#(define-markup-command (stickTuningName layout props tuning) (scheme?)
+   (interpret-markup layout props (stk-name-of tuning)))
+
+%% \with side markers for a GENERIC ChapmanStaff -- they set stickSide, which the
+%% staff reads (with its `stickTuning`) to configure the lines / labels / fret
+%% side at run time.  Prefer ChapmanStickMelodyStaff / ChapmanStickBassStaff,
+%% which bake the side in; reach for these only on a plain ChapmanStaff:
+%%   \new ChapmanStaff \with { stickTuning = \stickTwelveStringClassic \stickMelody }
+%%     \melodyMusic
 stickMelody = \with { stickSide = #'up }
 stickBass   = \with { stickSide = #'down }
 
