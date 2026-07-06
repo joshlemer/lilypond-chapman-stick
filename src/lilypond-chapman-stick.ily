@@ -12,7 +12,8 @@
 %%
 %%   PITCH        the note itself -> staff position, and (with the staff's
 %%                tuning) the FRET, printed above the melody staff / below the
-%%                bass staff.  Chord frets are joined by "." (e.g. "5.5.7").
+%%                bass staff.  Frets read X (the open-string position), 1, 2,
+%%                3, ...; chord frets are joined by "." (e.g. "5.5.7", "X.3.5").
 %%   \1 .. \6     STRING -> a hollow box drawn ON that string's staff line.
 %%   -1 .. -4     FINGER -> notehead SHAPE: 1 index = circle, 2 middle = diamond,
 %%                3 ring = triangle, 4 little = square.  FILL follows DURATION
@@ -31,6 +32,7 @@
 
 %%   Single note:  g'8\1-2        string 1, middle finger (fret from pitch)
 %%   Explicit fret: c'8\fr 12     fret 12; string (box) derived from it
+%%   Open position: c'\fr X       the "X" fret (open string); \fr 0 works too
 %%   In a chord:   <c\5-1 e'\4-3> each note carries its own string/finger
 %%   Whole passage: \onString 6 { a b c }   put a run of notes on one string
 %%
@@ -390,10 +392,22 @@
        (set! heads '())))))
 
 %% ---- fret label engraver -------------------------------------------------
-%% Each timestep, collect the noteheads carrying a fret, sort high->low pitch
-%% (TOP note first), and emit ONE TextScript ("5.5.7") anchored to their note
-%% column.  Direction (above the melody staff / below the bass staff) follows
-%% the staff's `stickSide` context property.
+%% Each timestep, collect the noteheads carrying a fret, order them by STRING --
+%% top string (1) first, matching the tuning's top->bottom definition -- and emit
+%% ONE TextScript ("5.5.7") anchored to their note column.  Direction (above the
+%% melody staff / below the bass staff) follows the `stickSide` context property.
+%% Render a stored fret value: 0 is the Stick's open position, shown as "X"
+%% (frets read X, 1, 2, 3, ...); every other value prints as its number.
+#(define (stk-fret->string f)
+   (if (= f 0) "X" (number->string f)))
+
+%% String number of a fretted notehead, for TOP-STRING -> BOTTOM-STRING ordering.
+%% By this point the string is set (explicit \1..\6 or derived in the input
+%% engraver, which runs first); a fret with no resolvable string sorts last.
+#(define (stk-head-string h)
+   (let ((s (ly:grob-property h 'stk-string #f)))
+     (if (integer? s) s 1000)))
+
 #(define (Stk_fret_engraver context)
    (let ((heads '()))
      (make-engraver
@@ -404,12 +418,12 @@
        (let ((fretted (filter (lambda (h) (ly:grob-property h 'stk-fret #f)) heads)))
          (when (pair? fretted)
            (let* ((sorted (sort fretted
-                            (lambda (a b) (> (ly:grob-property a 'staff-position 0)
-                                             (ly:grob-property b 'staff-position 0)))))
+                            (lambda (a b) (< (stk-head-string a)
+                                             (stk-head-string b)))))
                   (txt    (string-join
-                            (map (lambda (h) (number->string (ly:grob-property h 'stk-fret)))
+                            (map (lambda (h) (stk-fret->string (ly:grob-property h 'stk-fret)))
                                  sorted) "."))
-                  (nh     (car sorted))                 ; top notehead of the column
+                  (nh     (car sorted))                 ; head on the top string
                   (col    (ly:grob-parent nh X))        ; its NoteColumn
                   (label  (ly:engraver-make-grob engraver 'TextScript nh))
                   (d      (if (eq? (ly:context-property context 'stickSide 'up) 'down)
@@ -614,11 +628,19 @@ stickBass   = \with { stickSide = #'down }
 
 %% Spell a fret out EXPLICITLY as a lightweight POST-EVENT, alongside \1..\6 and
 %% -1..-4:  c'8\fr 7   (this wins over the derived value; needs no string).
-%% It rides in as a hidden fingering carrying stk-fret, which Stk_input_engraver
-%% routes onto the notehead.  Works in chords per note too:  <c\fr 5 e\fr 7>.
+%% Accepts a fret NUMBER or the open-position marker X (\fr X, any case; \fr 0
+%% works too) -- X is stored as fret 0, so both the derivation and the "X" label
+%% follow automatically.  It rides in as a hidden fingering carrying stk-fret,
+%% which Stk_input_engraver routes onto the notehead.  Works in chords per note
+%% too:  <c\fr 5 e\fr 7>.
+#(define (stk-fret-arg? x)              ; a fret number, or X / "X" / 'X (any case)
+   (or (index? x)
+       (and (or (string? x) (symbol? x))
+            (string-ci=? (if (symbol? x) (symbol->string x) x) "X"))))
 fr =
-#(define-event-function (n) (index?)
-   #{ -\tweak stk-fret #n #(make-music 'FingeringEvent 'digit n) #})
+#(define-event-function (n) (stk-fret-arg?)
+   (let ((fret (if (index? n) n 0)))    ; X -> fret 0
+     #{ -\tweak stk-fret #fret #(make-music 'FingeringEvent 'digit fret) #}))
 
 %% Apply a STRING to a whole passage instead of note-by-note:
 %%   \onString 6 { a b c d }      -- all four on string 6

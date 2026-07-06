@@ -72,6 +72,7 @@ Each note is plain LilyPond plus optional post-events — no special note comman
 | `c'\3` | on **string 3** (draws the box); fret derived from pitch |
 | `c'-2` | **middle finger** → diamond notehead (`-1`..`-4` = index/middle/ring/little) |
 | `c'\fr 12` | **fret 12** spelled out; the string (box) is derived from it |
+| `c'\fr X` | the **open** ("X") fret; `\fr 0` is the same |
 | `c'\5-1\fr 7` | pin all three explicitly |
 | `\onString 6 { a b c }` | put a whole run on string 6 |
 
@@ -81,6 +82,11 @@ the note's pitch (`fret = note − open string`):
 - `\3` alone → shows the derived fret on string 3.
 - `\fr 12` alone → draws the box on whichever string plays that fret.
 - give both → pinned exactly.
+
+Frets read **X**, **1**, **2**, **3**, … — the **X** fret is the open-string
+position (the Chapman Stick's equivalent of a guitar's open string), so a note
+sounding a string's open pitch shows **X** rather than `0`. Spell it out with
+`\fr X` (any case) or `\fr 0`.
 
 Turn derivation off (show only what you type) per staff, group, or mid-piece:
 
@@ -129,29 +135,71 @@ A `stickTuning` value can be:
 
 - a **name string** — `stickTuning = "12StringClassic"`
 - a **variable** — `stickTuning = \stickTwelveStringClassic` (compile-time
-  checked; digits spelled out, so `12`→`Twelve`, `10`→`Ten`, `4`→`Four`)
+  checked; digits spelled out, so `12`→`Twelve`, `10`→`Ten`, `4`→`Four` — e.g.
+  `10StringClassic` → `\stickTenStringClassic`)
 - an **inline pair** of SPN pitch lists (melody then bass, top line → bottom,
   `C4` = middle C) — `stickTuning = #'(("C4" "G3" ...) ("C1" "G1" ...))`
 - a **single side's** SPN list
 
 ### Built-in tunings
 
-Use any of these by name (`"…"`) or as a `\stick…` variable:
+Every packaged tuning is listed below with its open strings in scientific pitch
+notation (`C4` = middle C), **top line → bottom line** on each staff. Use any by
+name (`stickTuning = "10StringClassic"`) or as its `\stick…` variable.
 
-**10-string:** `10StringMatchedReciprocal`, `10StringClassic`,
-`10StringBaritoneMelody`, `10StringDeepMatchedReciprocal`,
-`10StringRaisedMatchedReciprocal`, `10StringFullBaritone`,
-`10StringDualBassReciprocal`, `10StringAlto`, `10StringGregHowardExtendedAlto`,
-`10StringBobCulbertsonExpandedAlto`
+**10-string** (5 melody + 5 bass):
 
-**12-string:** `12StringMatchedReciprocal`, `12StringClassic`,
-`12StringMatchedReciprocalHighBass4th`, `12StringClassicHighBass4th`,
-`12StringDeepMatchedReciprocal`, `12StringDualBassReciprocal`,
-`12StringMirrored4ths`
+| Name | Melody (top→bottom) | Bass (top→bottom) |
+|---|---|---|
+| `10StringMatchedReciprocal` | C4 G3 D3 A2 E2 | C1 G1 D2 A2 E3 |
+| `10StringClassic` | D4 A3 E3 B2 F#2 | C1 G1 D2 A2 E3 |
+| `10StringBaritoneMelody` | A3 E3 B2 F#2 C#2 | C1 G1 D2 A2 E3 |
+| `10StringDeepMatchedReciprocal` | Bb3 F3 C3 G2 D2 | Bb0 F1 C2 G2 D3 |
+| `10StringRaisedMatchedReciprocal` | D4 A3 E3 B2 F#2 | D1 A1 E2 B2 F#3 |
+| `10StringFullBaritone` | A3 E3 B2 F#2 C#2 | D1 A1 E2 B2 F#3 |
+| `10StringDualBassReciprocal` | C4 G3 D3 A2 E2 | B0 F#1 C#2 G#2 D#3 |
+| `10StringAlto` | G4 D4 A3 E3 B2 | C2 G2 D3 A3 E4 |
+| `10StringGregHowardExtendedAlto` | A4 E4 B3 F#3 C#3 | C2 G2 D3 A3 E4 |
+| `10StringBobCulbertsonExpandedAlto` | A4 E4 B3 F#3 C#3 | A2 E3 B3 F#4 C#5 |
+
+**12-string** (6 melody + 6 bass):
+
+| Name | Melody (top→bottom) | Bass (top→bottom) |
+|---|---|---|
+| `12StringMatchedReciprocal` | C4 G3 D3 A2 E2 B1 | C1 G1 D2 A2 E3 B3 |
+| `12StringClassic` | D4 A3 E3 B2 F#2 C#2 | C1 G1 D2 A2 E3 B3 |
+| `12StringMatchedReciprocalHighBass4th` | C4 G3 D3 A2 E2 B1 | C1 G1 D2 A2 E3 A3 |
+| `12StringClassicHighBass4th` | C4 G3 D3 A2 E2 A1 | C1 G1 D2 A2 E3 A3 |
+| `12StringDeepMatchedReciprocal` | Bb3 F3 C3 G2 D2 A1 | Bb0 F1 C2 G2 D3 A3 |
+| `12StringDualBassReciprocal` | F4 C4 G3 D3 A2 E2 | B0 F#1 C#2 G#2 D#3 A#3 |
+| `12StringMirrored4ths` | C4 G3 D3 A2 E2 B1 | E1 A1 D2 G2 C3 F3 |
 
 ### Custom tunings
 
-Register one by name for reuse:
+**Inline, right in `\with`** — give `stickTuning` a pair of SPN lists, `(melody
+bass)`, each ordered top line → bottom line (`C4` = middle C). This is the whole
+tuning in one place; no registration needed:
+
+```lilypond
+\new ChapmanStickStaff \with {
+  stickTuning = #'(("D4" "A3" "E3" "B2" "F#2" "C#2")   %% melody, top → bottom
+                   ("C1" "G1" "D2" "A2" "E3" "B3"))    %% bass,   top → bottom
+} <<
+  \new ChapmanStaff \with { \stickMelody } \melody
+  \new ChapmanStaff \with { \stickBass }   \bass
+>>
+```
+
+You can also pass **one side's** list to a lone staff:
+
+```lilypond
+\new ChapmanStaff \with {
+  stickTuning = #'("D4" "A3" "E3" "B2" "F#2" "C#2")    \stickMelody
+} \melody
+```
+
+**Register by name for reuse** — declare it once with `\addStickTuning`, then
+refer to it by name anywhere (melody list, then bass list):
 
 ```lilypond
 \addStickTuning "MyStick" #'("D4" "A3" "E3" "B2" "F#2" "C#2")

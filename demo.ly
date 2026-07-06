@@ -21,9 +21,6 @@ melody = \fixed c {
   e-2  e-2 f-3 g-1 | g-1 f-3 e-2 d-1 | c-1 c-1 d-2 e-3 d4.-2 c8-1 c2-2) \bar "|."
 }
 
-
-
-
 bass = \fixed c, {
   \clef "bass_8"
   \time 4/4
@@ -34,13 +31,11 @@ bass = \fixed c, {
   c2-1 bes-4 | a-3 f-2 | e4-1 e-2 g-1 c-2 | g2-1 <c-1\2 e'-4\4 g-2\3>2 \bar "|."
 }
 
-
-%% Declare the tuning ONCE on the ChapmanStickStaff (in \with); each child
-%% ChapmanStaff just marks its side and inherits the tuning.  You own each
-%% \new ... \with { } and can add any overrides; the group braces the two halves
-%% like a piano grand staff.
 \score {
-  \new ChapmanStickStaff \with { stickTuning = \stickTwelveStringMatchedReciprocal } <<
+  \new ChapmanStickStaff \with { 
+    stickTuning = \stickTwelveStringMatchedReciprocal 
+    
+    } <<
     \new ChapmanStaff \with { \stickMelody }
     \melody
     \new ChapmanStaff \with { \stickBass }
