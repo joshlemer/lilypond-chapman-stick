@@ -1,6 +1,6 @@
 \version "2.26.0"
 
-\include "stafftab.ily"
+\include "src/stafftab.ily"
 
 \header {
   title = "Ode to Joy"
