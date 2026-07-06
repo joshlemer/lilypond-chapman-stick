@@ -29,7 +29,10 @@ Add the unzipped folder to Lilypond's path. This can be done in [Frescrobaldi](h
 
 ![](docs/images/installation/03.png)
 
-3. On the bottom right, in the **LilyPond Include Path** section, click **+ Add...**, and add the 
+3. On the bottom right, in the **LilyPond Include Path** section, click **+ Add...**, and add the unzipped folder to the path
+![](docs/images/installation/04.png)
+
+Then, you can create a new file 
 
 ## Quick start
 
