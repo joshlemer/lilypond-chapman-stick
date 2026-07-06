@@ -76,8 +76,8 @@ bass = \fixed c, {
 
 Pitches, finger, and string use standard Lilypond notation. Lilypod usually derives fret from the string and the pitch, but this library also adds an additional operator to explicitly annotate the fret. Examples of all 3 found below:
 
-|Expression|Meaning| Image
-|---|---|
+|Expression|Meaning|Image|
+|---|---|---|
 | `c` | C note (specifically C3), with no extra information | ![](docs/images/expressions/plain.png)
 | `c\1 c\2 c\3 c\4 c\5 c\6` | on **string 1,2,3,4**, draws string indicator box on line 3 from the top. | ![](docs/images/expressions/string_indicators.png)
 | `c-1 c-2 c-3 c-4` | **finger 1 (index), 2 (middle), 3 (ring), 4 (pinky)**  sets notehead to circle, diamond, triangle, square | ![](docs/images/expressions/finger_indicators.png)
