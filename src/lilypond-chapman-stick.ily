@@ -168,7 +168,7 @@
    (let* ((filled (>= (ly:grob-property grob 'duration-log 2) 2))
           (circ   (grob-interpret-markup grob
                     (if filled
-                        #{ \markup \draw-circle #0.55 #0.0  ##t #}
+                        #{ \markup \draw-circle #0.48 #0.0  ##t #}
                         #{ \markup \draw-circle #0.5  #0.13 ##f #}))))
      (ly:stencil-translate-axis circ (stk-head-center grob) X)))
 
