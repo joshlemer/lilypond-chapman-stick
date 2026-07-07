@@ -15,6 +15,24 @@ Requires **LilyPond 2.26** or newer. Public domain (**CC0-1.0**).
 
 ---
 
+## Contents
+
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Writing notes](#writing-notes)
+  - [Auto derivation of strings and frets](#auto-derivation-of-strings-and-frets)
+  - [The octave convention](#the-octave-convention)
+- [Staves](#staves)
+- [Tunings](#tunings)
+  - [Built-in tunings](#built-in-tunings)
+  - [Custom tunings](#custom-tunings)
+  - [Printing the tuning name](#printing-the-tuning-name)
+- [A note on how much to annotate](#a-note-on-how-much-to-annotate)
+- [Examples](#examples)
+- [License](#license)
+
+---
+
 ## Installation
 
 Download the latest release and unzip it in your desired location.
@@ -75,7 +93,9 @@ bass = \fixed c, {
 
 ## Writing notes
 
-Pitches, finger, and string use standard Lilypond notation. Lilypod usually derives fret from the string and the pitch, but this library also adds an additional operator to explicitly annotate the fret. Examples of all 3 found below:
+### Basic functionality: recording strings, fingers, and frets
+
+Pitches, finger, and string use standard Lilypond notation (see [pitches](https://lilypond.org/doc/v2.24/Documentation/notation/writing-pitches), [fingerings](https://lilypond.org/doc/v2.26/Documentation/learning/fingering.html), and [string numbers](https://lilypond.org/doc/v2.26/Documentation/notation/common-notation-for-fretted-strings.html) ). Lilypod usually derives fret information from the string and the pitch, but this library also adds an additional operator (`\fr`) to explicitly annotate the fret. Examples of all 3 found below:
 
 |Expression|Meaning|Image|
 |---|---|---|
@@ -168,7 +188,7 @@ bass = \transpose c c' \fixed c, {
 </tr>
 </table>
 
-However I prefer to be more explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs), like this:
+However I prefer to be more explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs), like this (note the small "8" below the clefs):
 
 <table>
 <tr>
@@ -199,7 +219,7 @@ bass = \fixed c, {
 ## Staves
 
 The library gives you a grand-staff group and three single staves. Every staff
-`\alias`es `Staff`, so they behave like ordinary staves — they nest in
+`\alias`es `Staff`, so they behave like ordinary staves. They nest in
 `StaffGroup` / `PianoStaff` / your own layout, take any `\with` overrides, and
 work on their own.
 
@@ -247,11 +267,11 @@ your own `StaffGroup`), use the generic `ChapmanStaff` with `\stickMelody` or
 
 A `stickTuning` value can be:
 
-- a **built-in variable** — `stickTuning = \stickTwelveStringClassic` (see the
+- a **built-in variable**: `stickTuning = \stickTwelveStringClassic` (see the
   tables below)
-- a **custom tuning** built with `\makeStickTuning` — `stickTuning = \myTuning`
+- a **custom tuning** built with `\makeStickTuning`: `stickTuning = \myTuning`
 - an **inline pair** of Scientific Pitch Notation (SPN, i.e. `C#3`, `Eb2` etc) pitch lists (melody then bass,
-  `C4` = middle C) — `stickTuning = #'(("C4" "G3" ...) ("C1" "G1" ...))`
+  `C4` = middle C): `stickTuning = #'(("C4" "G3" ...) ("C1" "G1" ...))`
 - a **single side's** SPN list, for a lone staff
 
 Set it on a `ChapmanStickStaff` (shared by both halves) or on an individual
@@ -291,7 +311,7 @@ Select a built-in tuning by its `\stick…` variable. Open strings (or, really, 
 
 ### Custom tunings
 
-**Build one with `\makeStickTuning`** — give it a name and two SPN pitch lists
+**Build one with `\makeStickTuning`**: give it a name and two SPN pitch lists
 (melody then bass), each ordered top line -> bottom. Assign it to
 a variable and use it anywhere a tuning is accepted; its name is available to
 `\stickTuningName` (see below):
@@ -348,13 +368,7 @@ or a `\makeStickTuning` one):
 
 ## A note on how much to annotate
 
-Lean **sparse**: annotate a string/finger where the position *changes* or the
-choice is *non-obvious* (a shift, an awkward reach, the start of a phrase, a pitch
-playable on more than one string). By default only what you type is shown, so
-sparse input already gives a clean chart. Turn on `stickAutoFret` and a fret
-number then appears wherever a note carries a string — a "position map" rather
-than a number on every note. Reserve fully-explicit annotation for method books,
-exercises, or genuinely ambiguous passages.
+People have differing philosophies. It's perfectly valid to have every string, finger, and fret annotated. Others may find it's clearer to only annotate when there's a change in a string, or where a non-obvious finger/pinky/string is used, and to leave the rest as implied. 
 
 ---
 
