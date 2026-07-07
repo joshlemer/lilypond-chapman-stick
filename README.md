@@ -50,7 +50,11 @@ Add the unzipped folder to Lilypond's path. This can be done in [Frescrobaldi](h
 3. On the bottom right, in the **LilyPond Include Path** section, click **+ Add...**, and add the unzipped folder to the path
 ![](docs/images/installation/04.png)
 
-Then, you can create a new file 
+Then, you can create a new file Lilypond file which imports the library via 
+
+```lilypond
+\include "lilypond-chapman-stick.ily"
+```
 
 ## Quick start
 
@@ -91,33 +95,37 @@ bass = \fixed c, {
 
 ---
 
-## Writing notes
+## Writing Notes
 
-### Basic functionality: recording strings, fingers, and frets
+### Basic functionality: annotating Strings, Fingers, and Frets
 
-Pitches, finger, and string use standard Lilypond notation (see [pitches](https://lilypond.org/doc/v2.24/Documentation/notation/writing-pitches), [fingerings](https://lilypond.org/doc/v2.26/Documentation/learning/fingering.html), and [string numbers](https://lilypond.org/doc/v2.26/Documentation/notation/common-notation-for-fretted-strings.html) ). Lilypod usually derives fret information from the string and the pitch, but this library also adds an additional operator (`\fr`) to explicitly annotate the fret. Examples of all 3 found below:
+Pitches, fingers, and String use standard Lilypond notation (see [pitches](https://lilypond.org/doc/v2.24/Documentation/notation/writing-pitches), [fingerings](https://lilypond.org/doc/v2.26/Documentation/learning/fingering.html), and [string numbers](https://lilypond.org/doc/v2.26/Documentation/notation/common-notation-for-fretted-strings.html) ). Lilypod usually derives fret information from the string and the pitch, and has no native way to support explicitly setting the fret of a note, but this library adds an additional operator, `\fr`, to explicitly annotate the fret. Examples of all 3 found below:
 
 |Expression|Meaning|Image|
 |---|---|---|
 | `c` | C note (specifically C3), with no extra information | ![](docs/images/expressions/plain.png)
 | `c\1 c\2 c\3 c\4 c\5 c\6` | on **string 1,2,3,4**, draws string indicator box on line 3 from the top. | ![](docs/images/expressions/string_indicators.png)
-| `c-1 c-2 c-3 c-4` | **finger 1 (index), 2 (middle), 3 (ring), 4 (pinky)**  sets notehead to circle, diamond, triangle, square | ![](docs/images/expressions/finger_indicators.png)
-| `c\fr12 c\fr5` | **fret 12, fret 5**. Fret numbers placed above/below the staff. Note that space is allowed between `\fr` and the fret number | ![](docs/images/expressions/fret_indicators.png)
-| `c\fr X` or `c\fr0` | the "X" fret fret; `\fr 0 and \fr0` is the same. "X" requires a space between `\fr` and `"X"` | ![](docs/images/expressions/fret_x_indicator.png)
-| `c\5-1\fr7` | pin all three explicitly | ![](docs/images/expressions/all_indicators.png)
-| `<c-1\2\fr1 e'-4\4\fr2 g-2\3\fr3>` | apply all 3 to each note inside a chord | ![](docs/images/expressions/all_indicators_chord.png)
+| `c4-1 c-2 c-3 c-4 c2-1 c-2 c-3 c-4` | **finger 1 (index), 2 (middle), 3 (ring), 4 (pinky)**  sets notehead to circle, diamond, triangle, square | ![](docs/images/expressions/finger_indicators.png)
+| `c\fr12 c\fr 5` | **fret 12, fret 5**. Fret numbers placed above(melody) / below (bass) the staff. Note that space is allowed between `\fr` and the fret number | ![](docs/images/expressions/fret_indicators.png)
+| `c\fr X` or `c\fr0` | the "X" fret; `\fr X` and `\fr0` are equivalent. Spelling it "X" rather than "0" requires a space between `\fr` and `X` though | ![](docs/images/expressions/fret_x_indicator.png)
+| `c\5-1\fr7` | set the string, finger and fret at the same time. Order doesn't matter. `c-1\5\fr7` and `c\fr7-1\5` etc are equivalent | ![](docs/images/expressions/all_indicators.png)
+| `<c-1\2\fr1 e'-4\4\fr2 g-2\3\fr3>` | apply all 3 to each note inside a chord. String indicators are horizontally offset to show the relative fret positions (string 2 is at fret 1, which is lowest so it is shifted left; string 3 is at fret 3 which is highest, it shifts right; string 4 is at fret 2 which is in the middle, it doesn't shift) | ![](docs/images/expressions/all_indicators_chord.png)
 | `\onString 6 { a4 b c d e f g a }` | put a whole run on string 6 | ![](docs/images/expressions/group_string_indicator.png)
 
 ### Auto derivation of strings and frets
 
-When a tuning is configured for a `ChapmanStickStaff`, then when a pitch and a fret is provided, there is enough information to uniquely identify the string the note is played on. Or when a pitch and a string is provided, the fret can be identified. Lilypond-chapman-stick supports automatically displaying the string or the fret, whenever it has enough information to do so. 
+If a tuning is configured for a `ChapmanStickStaff`, then when a pitch and a fret is provided, there is enough information to uniquely identify the string the note is played on. Or when a pitch and a string is provided, the fret can be identified. Lilypond-chapman-stick supports automatically displaying the string or the fret, whenever it has enough information to do so. 
+
+To enable auto-derivation of frets, enable `stickAutoFret` in the `ChapmanStickStaff`.
+
+To enable auto-derivation of strings, enable `stickAutoString` in the `ChapmanStickStaff`
 
 ```lilypond
 \new ChapmanStickStaff \with { 
   % ...tuning etc...
 
-  stickAutoFret = ##t % NOTE: Remove this line to disable auto fret annotations
-  stickAutoString = ##t % NOTE: Remove this line to disable auto string annotations
+  stickAutoFret = ##t % NOTE: Remove this line to disable auto fret annotations. Or you could set it to false (##f)
+  stickAutoString = ##t % NOTE: Remove this line to disable auto string annotations. Or you could set it to false (##f)
 }
 ```
 
@@ -162,7 +170,11 @@ score {
 </tr>
 </table>
 
-### The octave convention
+### Notes without explicit fingerings
+
+Notes without an explicit fingering (so, a note like `c` rather than `c-1` (index finger)) are shown as standard ovals. Greg Howard and Emmett Chapman never explicitly stated this convention in their StaffTab publications to my knowledge, but it's a conservative and in my opinion necessary  
+
+### The Octave Convention
 
 Typically in StaffTab, pitches are written one octave higher than they sound. This can be achieved in Lilypond by using transpose blocks:
 
@@ -188,7 +200,7 @@ bass = \transpose c c' \fixed c, {
 </tr>
 </table>
 
-However I prefer to be more explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs), like this (note the small "8" below the clefs):
+However, I prefer to be more explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs), like this (note the small "8" below the clefs):
 
 <table>
 <tr>
@@ -271,7 +283,7 @@ A `stickTuning` value can be:
   tables below)
 - a **custom tuning** built with `\makeStickTuning`: `stickTuning = \myTuning`
 - an **inline pair** of Scientific Pitch Notation (SPN, i.e. `C#3`, `Eb2` etc) pitch lists (melody then bass,
-  `C4` = middle C): `stickTuning = #'(("C4" "G3" ...) ("C1" "G1" ...))`
+  `C4` = middle C): `stickTuning = #'(("C4" "G3" ...) ("C1" "G1" ...))`. The order is always _player's left_ -> _player's right_ (or if you're looking at the instrument from the front, it would be right->left)
 - a **single side's** SPN list, for a lone staff
 
 Set it on a `ChapmanStickStaff` (shared by both halves) or on an individual
@@ -279,12 +291,12 @@ staff.
 
 ### Built-in tunings
 
-Select a built-in tuning by its `\stick…` variable. Open strings (or, really, top-fret notes) are in Scientific Pitch Notation (SPN)
+Select a built-in tuning by its `\stick...` variable. Open strings (or, really, top-fret notes) are in Scientific Pitch Notation (SPN)
 (`C4` = middle C).
 
 **10-string** (5 melody + 5 bass):
 
-| Variable | Melody (top→bottom) | Bass (top→bottom) |
+| Variable | Melody (player's left -> mid-instrument) | Bass (mid-instrument -> player's right) |
 |---|---|---|
 | `\stickTenStringMatchedReciprocal` | C4 G3 D3 A2 E2 | C1 G1 D2 A2 E3 |
 | `\stickTenStringClassic` | D4 A3 E3 B2 F#2 | C1 G1 D2 A2 E3 |
@@ -312,7 +324,7 @@ Select a built-in tuning by its `\stick…` variable. Open strings (or, really, 
 ### Custom tunings
 
 **Build one with `\makeStickTuning`**: give it a name and two SPN pitch lists
-(melody then bass), each ordered top line -> bottom. Assign it to
+(melody then bass), ordering pitches from player's left -> player's right. Assign it to
 a variable and use it anywhere a tuning is accepted; its name is available to
 `\stickTuningName` (see below):
 
@@ -339,8 +351,8 @@ lists directly, or a single side's list on a lone staff:
 
 ```lilypond
 \new ChapmanStickStaff \with {
-  stickTuning = #'(("D4" "A3" "E3" "B2" "F#2" "C#2")   %% melody, top → bottom
-                   ("C1" "G1" "D2" "A2" "E3" "B3"))    %% bass,   top → bottom
+  stickTuning = #'(("D4" "A3" "E3" "B2" "F#2" "C#2")   %% melody
+                   ("C1" "G1" "D2" "A2" "E3" "B3"))    %% bass
 } <<
   \new ChapmanStickMelodyStaff \melody
   \new ChapmanStickBassStaff   \bass
@@ -366,9 +378,15 @@ or a `\makeStickTuning` one):
 
 ---
 
-## A note on how much to annotate
+## Note on how much to annotate
 
 People have differing philosophies. It's perfectly valid to have every string, finger, and fret annotated. Others may find it's clearer to only annotate when there's a change in a string, or where a non-obvious finger/pinky/string is used, and to leave the rest as implied. 
+
+This library attempts to support both schools of thought. 
+
+
+
+
 
 ---
 
@@ -381,8 +399,6 @@ The [`examples/`](./examples) directory has complete scores:
 - [`ode-to-joy.ly`](./examples/ode-to-joy.ly) — *Ode to Joy* for a 12-string
   matched-reciprocal Stick, showing strings, finger shapes, explicit frets, and
   both staves braced.
-
-Compile one with `src` on the include path (or from your installed location):
 
 ---
 
