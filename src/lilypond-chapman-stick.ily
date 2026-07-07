@@ -19,11 +19,14 @@
 %%                3 ring = triangle, 4 little = square.  FILL follows DURATION
 %%                (short = filled, half/whole = open) -- StaffTab's fill rule.
 %%
-%% FRET and STRING are complementary: give either one and the other is derived
-%% from the note's pitch (fret = note - open string).  So \3 alone shows the
-%% derived fret on string 3, and \fr 12 alone draws the box on whichever string
-%% plays that fret.  Give both to pin them exactly.  Turn this off with
-%% \with { stickAutoFret = ##f } (then only what you type explicitly is shown).
+%% FRET and STRING are complementary: give either one and the other CAN be derived
+%% from the note's pitch (fret = note - open string).  Derivation is OFF by
+%% default -- only what you type is shown -- and each direction is a separate
+%% opt-in toggle:
+%%   \with { stickAutoFret   = ##t }  -- \3 alone then also shows the derived fret
+%%   \with { stickAutoString = ##t }  -- \fr 12 alone then also draws the box on
+%%                                       whichever string plays that fret
+%% Give both a string and a fret to pin them exactly, no toggle needed.
 %% As is standard for the Chapman Stick, notate an octave above sounding and use
 %% the octave-down clefs (\clef "treble_8" / "bass_8"); the tunings below are in
 %% that same written pitch, so notes and open strings line up directly.
@@ -106,7 +109,9 @@
           (list 'stickSide symbol?
                 "StaffTab: which half this staff is -- 'up (melody) or 'down (bass)")
           (list 'stickAutoFret boolean?
-                "StaffTab: auto-derive the missing one of fret/string from the other + pitch (default #t)"))))
+                "StaffTab: derive a missing FRET from string + pitch (default #f)")
+          (list 'stickAutoString boolean?
+                "StaffTab: derive a missing STRING from fret + pitch (default #f)"))))
 
 %% ---- open-string pitch helpers -------------------------------------------
 %% A tuning names each open string in scientific pitch notation ("F#3", "Bb0",
@@ -328,35 +333,38 @@
                   (map stk-spn->semitone names)
                   (map stk-spn->label names))))))
 
-%% After strings (\1..\6) and explicit frets (\fr) are in place, fill in the
-%% OTHER of {fret, string} from the note's pitch -- when `stickAutoFret` is on
-%% (default #t):
-%%   string but no fret -> fret = note - open[string]
-%%   fret but no string  -> the string whose open pitch is exactly (note - fret)
-%% If neither is derivable (or auto-fret is off) the note keeps whatever it has.
+%% After strings (\1..\6) and explicit frets (\fr) are in place, optionally fill
+%% in the OTHER of {fret, string} from the note's pitch.  Two independent toggles,
+%% both OFF by default:
+%%   stickAutoFret   (##t): string but no fret -> fret = note - open[string]
+%%   stickAutoString (##t): fret but no string -> the string whose open pitch is
+%%                          exactly (note - fret)
+%% With a toggle off (or nothing derivable) the note keeps whatever it has.
 #(define (stk-derive-head! context head)
-   (when (ly:context-property context 'stickAutoFret #t)
-     (let ((str   (ly:grob-property head 'stk-string #f))
-           (fret  (ly:grob-property head 'stk-fret #f))
-           (opens (ly:grob-property head 'stk-open '()))
-           (ev    (ly:grob-property head 'cause)))
-       (when (and (pair? opens) (ly:stream-event? ev)
-                  (ly:pitch? (ly:event-property ev 'pitch)))
-         (let ((sem (ly:pitch-semitones (ly:event-property ev 'pitch))))
-           (cond
-            ;; string given, fret missing -> derive the fret
-            ((and (integer? str) (not (integer? fret)) (<= 1 str (length opens)))
-             (let ((f (- sem (list-ref opens (- str 1)))))
-               (if (< f 0)
-                   (ly:warning "stafftab: note is below open string ~a (fret ~a)" str f)
-                   (ly:grob-set-property! head 'stk-fret f))))
-            ;; fret given, string missing -> derive the string whose open pitch
-            ;; equals (note - fret); if none matches, leave it (no box)
-            ((and (integer? fret) (not (integer? str)))
-             (let loop ((i 1) (os opens))
-               (cond ((null? os) #f)
-                     ((= (car os) (- sem fret)) (ly:grob-set-property! head 'stk-string i))
-                     (else (loop (+ i 1) (cdr os))))))))))))
+   (let ((auto-fret   (ly:context-property context 'stickAutoFret   #f))
+         (auto-string (ly:context-property context 'stickAutoString #f)))
+     (when (or auto-fret auto-string)
+       (let ((str   (ly:grob-property head 'stk-string #f))
+             (fret  (ly:grob-property head 'stk-fret #f))
+             (opens (ly:grob-property head 'stk-open '()))
+             (ev    (ly:grob-property head 'cause)))
+         (when (and (pair? opens) (ly:stream-event? ev)
+                    (ly:pitch? (ly:event-property ev 'pitch)))
+           (let ((sem (ly:pitch-semitones (ly:event-property ev 'pitch))))
+             (cond
+              ;; string given, fret missing -> derive the FRET
+              ((and auto-fret (integer? str) (not (integer? fret)) (<= 1 str (length opens)))
+               (let ((f (- sem (list-ref opens (- str 1)))))
+                 (if (< f 0)
+                     (ly:warning "stafftab: note is below open string ~a (fret ~a)" str f)
+                     (ly:grob-set-property! head 'stk-fret f))))
+              ;; fret given, string missing -> derive the string whose open pitch
+              ;; equals (note - fret); if none matches, leave it (no box)
+              ((and auto-string (integer? fret) (not (integer? str)))
+               (let loop ((i 1) (os opens))
+                 (cond ((null? os) #f)
+                       ((= (car os) (- sem fret)) (ly:grob-set-property! head 'stk-string i))
+                       (else (loop (+ i 1) (cdr os)))))))))))))
 
 #(define (Stk_input_engraver context)
    (let ((cfg #f) (fingers '()) (heads '()))   ; cfg = (count up? opens labels)

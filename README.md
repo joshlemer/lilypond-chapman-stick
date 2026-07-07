@@ -87,27 +87,63 @@ Pitches, finger, and string use standard Lilypond notation. Lilypod usually deri
 | `<c-1\2\fr1 e'-4\4\fr2 g-2\3\fr3>` | apply all 3 to each note inside a chord | ![](docs/images/expressions/all_indicators_chord.png)
 | `\onString 6 { a4 b c d e f g a }` | put a whole run on string 6 | ![](docs/images/expressions/group_string_indicator.png)
 
-### Fret and string are complementary 
-give either and the other is derived from the note's pitch 
+### Auto derivation of strings and frets
 
-- `\3` alone → shows the derived fret on string 3.
-- `\fr 12` alone → draws the box on whichever string plays that fret.
-- give both → pinned exactly.
-
-Frets read **X**, **1**, **2**, **3**, … — the **X** fret is the open-string
-position (the Chapman Stick's equivalent of a guitar's open string), so a note
-sounding a string's open pitch shows **X** rather than `0`. Spell it out with
-`\fr X` (any case) or `\fr 0`.
-
-Turn derivation off (show only what you type) per staff, group, or mid-piece:
+When a tuning is configured for a `ChapmanStickStaff`, then when a pitch and a fret is provided, there is enough information to uniquely identify the string the note is played on. Or when a pitch and a string is provided, the fret can be identified. Lilypond-chapman-stick supports automatically displaying the string or the fret, whenever it has enough information to do so. 
 
 ```lilypond
-\with { stickAutoFret = ##f }
+\new ChapmanStickStaff \with { 
+  % ...tuning etc...
+
+  stickAutoFret = ##t % NOTE: Remove this line to disable auto fret annotations
+  stickAutoString = ##t % NOTE: Remove this line to disable auto string annotations
+}
 ```
+
+
+<table>
+<tr>
+<td>
+
+```lilypond
+score {
+  \new ChapmanStickStaff \with { 
+    stickTuning = \stickTwelveStringMatchedReciprocal 
+    stickAutoFret = ##t % NOTE: Remove this line to disable auto fret annotations
+    stickAutoString = ##t % NOTE: Remove this line to disable auto string annotations
+    
+  } <<
+    \new ChapmanStickMelodyStaff {
+      \clef "treble_8"
+      
+      % note: only strings are provided, frets 12, 19, 13, 10 are computed
+      a\4 b\5 c\6 d\5
+    }
+    \new ChapmanStickBassStaff \fixed c,{
+      \clef "bass_8"
+      %note: only frets are provided, string 2 is computed 
+      a\fr14 b\fr16 c\fr5 d\fr7 
+      
+      % This library will not stop you from entering wrong pitch + string + fret combinations such as below.
+      % Explicit fret/string/finger annotations always override derived values
+      a\2\fr1
+    }
+  >>
+}
+```
+
+</td>
+<td>
+
+![](./docs/images/auto_fret_and_string.png)
+
+</td>
+</tr>
+</table>
 
 ### The octave convention
 
-As is standard for the Chapman Stick, **notate an octave above sounding** and use
+Typically in As is standard for the Chapman Stick, **notate an octave above sounding** and use
 the octave-down clefs, `\clef "treble_8"` and `\clef "bass_8"`. The tunings are
 given in that same written pitch, so notes and open strings line up directly.
 
