@@ -6,7 +6,7 @@ Requires **LilyPond 2.26** or newer. Public domain (**CC0-1.0**).
 
 ![A basic scale and chord in StaffTab notation](screenshots/basic-scale-and-chord.png)
 
-[StaffTab](https://en.wikipedia.org/wiki/Chapman_Stick#Notation) is a notation system developed by Emmett Chapman and Greg Howard for the Chapman Stick. As on piano, music is written on the grand staff and the left hand plays the bottom staff (called the bass staff), while the right hand plays the top staff (called the melody staff). The music is written one octave lower than it sounds. Lilypond-chapman-stick makes this explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs). The system incorporates **string**, **fret**, and **finger** information into standard music notation.:
+[StaffTab](https://en.wikipedia.org/wiki/Chapman_Stick#Notation) is a notation system developed by Emmett Chapman and Greg Howard for the Chapman Stick. As on piano, music is written on the grand staff and the left hand plays the bottom staff (called the bass staff), while the right hand plays the top staff (called the melody staff). The system incorporates **string**, **fret**, and **finger** information into standard music notation.:
 
 - **String**: a hollow box drawn on the staff line that corresponds to the string on the instrument, as indicated by the labeled lines on the left of the staff. 
 - **Finger**: the notehead's *shape* (index = circle, middle = diamond, ring =
@@ -143,12 +143,55 @@ score {
 
 ### The octave convention
 
-Typically in As is standard for the Chapman Stick, **notate an octave above sounding** and use
-the octave-down clefs, `\clef "treble_8"` and `\clef "bass_8"`. The tunings are
-given in that same written pitch, so notes and open strings line up directly.
+Typically in StaffTab, pitches are written one octave higher than they sound. This can be achieved in Lilypond by using transpose blocks:
 
-A `note is below open string N` warning means the note is lower than that string's
-open pitch — write it higher (`'`) or use a lower-numbered (higher-pitched) string.
+<table>
+<tr>
+<td>
+
+```lilypond
+melody = \transpose c c' \fixed c {
+  \clef treble
+ a b c d
+}
+bass = \transpose c c' \fixed c, {
+  \clef bass
+ a b c d
+}
+```
+</td>
+<td>
+
+![](./docs/images/transposed.png) 
+</td>
+</tr>
+</table>
+
+However I prefer to be more explicit by using [Octave Clefs](https://en.wikipedia.org/wiki/Clef#Octave_clefs), like this:
+
+<table>
+<tr>
+<td>
+
+```lilypond
+melody = \fixed c {
+  \clef "bass_8"
+  a b c d 
+}
+melody = \fixed c, {
+  \clef "bass_8"
+  a b c d 
+}
+```
+</td>
+<td>
+
+![](./docs/images/octave_clefs.png) 
+</td>
+</tr>
+</table>
+
+
 
 ---
 
