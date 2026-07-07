@@ -32,7 +32,9 @@ bass = \fixed c, {
 \score {
   \new ChapmanStickStaff \with {
     stickTuning    = \stickTwelveStringMatchedReciprocal
-    instrumentName = "Chapman Stick"
+    %instrumentName = "Chapman Stick"
+    stickAutoFret = ##t
+    stickAutoString = ##t
   } <<
     \new ChapmanStickMelodyStaff \melody
     \new ChapmanStickBassStaff \bass
