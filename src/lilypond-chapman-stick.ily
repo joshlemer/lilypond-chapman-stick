@@ -139,24 +139,23 @@
                         a))))
          (+ pc acc (* 12 (- oct 4)))))))
 
-%% Strict scientific-pitch-notation check: a letter A-G, then zero or more
-%% accidentals (# or b), then a MANDATORY octave (one or more digits) and nothing
-%% else -- "C4", "F#3", "Bb0".  A missing octave ("C"), bad letter, or trailing
-%% junk is rejected.  (Note: the octave must be a plain number; negative octaves
-%% like "C-1" aren't supported, matching stk-spn-split.)
-#(define (stk-valid-spn? s)
-   (and (string? s)
-        (let ((n (string-length s)))
-          (and (> n 0)
-               (memv (char-upcase (string-ref s 0)) '(#\A #\B #\C #\D #\E #\F #\G))
-               (let loop ((k 1))                       ; skip the accidental run
-                 (if (and (< k n) (memv (string-ref s k) '(#\# #\b)))
-                     (loop (+ k 1))
-                     (and (< k n)                       ; octave present ...
-                          (let digits ((j k))           ; ... and all digits
-                            (cond ((= j n) #t)
-                                  ((char-numeric? (string-ref s j)) (digits (+ j 1)))
-                                  (else #f))))))))))
+%% A custom tuning is given as CHORDS of LilyPond pitches (see \makeStickTuning);
+%% these turn a chord's pitches -- in written order, top string first -- into the
+%% SPN strings the rest of the code uses.  stk-pitch->spn is the inverse of the
+%% split/semitone helpers above:  ly:pitch -> "C4" / "F#3" / "Bb0".  No validation
+%% is needed -- LilyPond has already parsed the pitches.
+#(define (stk-pitch->spn p)
+   (let* ((letter (list-ref '("C" "D" "E" "F" "G" "A" "B") (ly:pitch-notename p)))
+          (steps  (inexact->exact (* 2 (ly:pitch-alteration p))))   ; # = +1, b = -1 each
+          (acc    (cond ((> steps 0) (make-string steps #\#))
+                        ((< steps 0) (make-string (- steps) #\b))
+                        (else "")))
+          (oct    (+ (ly:pitch-octave p) 4)))                       ; c' (octave 0) = C4
+     (string-append letter acc (number->string oct))))
+#(define (stk-chord->spn chord)
+   (map (lambda (e) (stk-pitch->spn (ly:music-property e 'pitch)))
+        (filter (lambda (e) (music-is-of-type? e 'note-event))
+                (ly:music-property chord 'elements))))
 
 %% Centre (X) of a standard notehead glyph.  Our custom circle/diamond heads
 %% are drawn centred on the origin and then shifted to THIS point, so they line
@@ -167,14 +166,20 @@
                 (ly:font-get-glyph (ly:grob-default-font grob) "noteheads.s2") X)))
      (/ (+ (car ext) (cdr ext)) 2.0)))
 
+%% Ink half-widths of the custom finger-shape heads -- the single source of truth
+%% for their size, used both to DRAW them and to ATTACH the stem at their edge.
+#(define stk-circle-r-filled 0.48)   ; filled circle (short notes)
+#(define stk-circle-r-open   0.5)    ; open ring (half/whole notes)
+#(define stk-diamond-r       0.56)   ; diamond half-diagonal; >0.5 clears the lines
+
 %% A true CIRCLE notehead (LilyPond's default head is an oval).  Filled for
 %% short notes, an open ring for half/whole notes -- keeping fill = duration.
 #(define (stk-circle-head grob)
    (let* ((filled (>= (ly:grob-property grob 'duration-log 2) 2))
           (circ   (grob-interpret-markup grob
                     (if filled
-                        #{ \markup \draw-circle #0.48 #0.0  ##t #}
-                        #{ \markup \draw-circle #0.5  #0.13 ##f #}))))
+                        #{ \markup \draw-circle #stk-circle-r-filled #0.0  ##t #}
+                        #{ \markup \draw-circle #stk-circle-r-open   #0.13 ##f #}))))
      (ly:stencil-translate-axis circ (stk-head-center grob) X)))
 
 %% A DIAMOND notehead (middle finger): a square stood on its corner -- equal
@@ -183,7 +188,7 @@
 %% notes, an outline for half/whole; centred on the standard head like the circle.
 #(define (stk-diamond-head grob)
    (let* ((filled (>= (ly:grob-property grob 'duration-log 2) 2))
-          (r      0.56)                     ; half-diagonal; >0.5 clears the lines
+          (r      stk-diamond-r)
           (dia    (grob-interpret-markup grob
                     (if filled
                         #{ \markup \polygon #(list (cons 0 r) (cons r 0)
@@ -193,13 +198,23 @@
                                                       (list 'closepath)) #}))))
      (ly:stencil-translate-axis dia (stk-head-center grob) X)))
 
-%% Where the stem meets our circle/diamond: right edge for an up-stem, left edge
-%% for a down-stem, so the stem is tangent to the circle / meets the side point
-%% of the diamond.  (+/-1.0 = the extreme edge.)
+%% Where the stem meets our circle / diamond.  The head REPORTS a standard
+%% notehead's width (for spacing), but our ink is narrower -- so attaching at the
+%% extreme edge (+/-1) leaves a gap between stem and shape.  Attach at the INK
+%% edge instead: (shape ink half-width) / (standard head half-width).  Right edge
+%% for an up-stem, left edge for a down-stem.
 #(define (stk-circle-stem-attachment grob)
-   (let* ((stem (ly:grob-object grob 'stem))
-          (dir  (if (ly:grob? stem) (ly:grob-property stem 'direction) UP)))
-     (if (< dir 0) (cons -1.0 0.0) (cons 1.0 0.0))))
+   (let* ((stem   (ly:grob-object grob 'stem))
+          (dir    (if (ly:grob? stem) (ly:grob-property stem 'direction) UP))
+          (style  (ly:grob-property grob 'style 'default))
+          (filled (>= (ly:grob-property grob 'duration-log 2) 2))
+          (r      (cond ((eq? style 'stk-diamond) stk-diamond-r)
+                        (filled stk-circle-r-filled)
+                        (else stk-circle-r-open)))
+          (ext    (ly:stencil-extent
+                    (ly:font-get-glyph (ly:grob-default-font grob) "noteheads.s2") X))
+          (frac   (min 1.0 (/ r (/ (- (cdr ext) (car ext)) 2.0)))))
+     (if (< dir 0) (cons (- frac) 0.0) (cons frac 0.0))))
 
 %% A hollow (outlined, transparent inside) string-marker box that sits ON TOP
 %% of string line <n>.  Drawn from four thin filled edges so the inside stays
@@ -453,7 +468,7 @@
              (ly:grob-set-property! label 'direction d)
              ;; A touch smaller than melody text: fret numbers read as annotations,
              ;; and the narrower glyphs reduce collisions between adjacent labels.
-             (ly:grob-set-property! label 'font-size -1.5)
+             (ly:grob-set-property! label 'font-size -2.5)
              ;; Centre the label's INK on the notehead's centre, both measured in
              ;; the NoteColumn frame.  We compute the offset ourselves (target
              ;; minus half the label's own width) because setting X-offset to a
@@ -659,21 +674,15 @@ stickStaffBehaviour = \with {
   stk-tunings)
 
 %% Build your OWN tuning struct and use it exactly like the built-in \stick...
-%% variables.  Strings are open pitches in scientific pitch notation (C4 = middle
-%% C), melody then bass, each ordered top line -> bottom:
-%%   myStick = \makeStickTuning "My Stick" #'("D4" "A3" "E3" "B2" "F#2" "C#2")
-%%                                         #'("C1" "G1" "D2" "A2" "E3" "B3")
+%% variables.  Give it a NAME and two CHORDS of open-string pitches -- melody then
+%% bass, each written top line -> bottom (the first pitch is the top staff line):
+%%   myStick = \makeStickTuning "My Stick" <d' a e b, fis, cis,> <c,, g,, d, a, e b>
 %%   \with { stickTuning = \myStick }                      %% on a staff or group
 %%   \header { instrument = \stickTuningName #myStick }    %% pull its name
 %%   #(stk-tuning-melody myStick)                          %% or any field, in Scheme
 makeStickTuning =
-#(define-scheme-function (name melody bass) (string? list? list?)
-   (for-each
-    (lambda (s)
-      (unless (stk-valid-spn? s)
-        (ly:error "stafftab: tuning ~s has ~s, which is not scientific pitch notation (expected e.g. \"C4\", \"F#3\", \"Bb0\" -- a letter, optional #/b, and a required octave)" name s)))
-    (append melody bass))
-   (make-stk-tuning name melody bass))
+#(define-scheme-function (name melody bass) (string? ly:music? ly:music?)
+   (make-stk-tuning name (stk-chord->spn melody) (stk-chord->spn bass)))
 
 %% One side's open-string pitch list (top -> bottom) from a tuning:
 %%   a \stick... / \makeStickTuning struct -> that side of the struct

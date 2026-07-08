@@ -323,14 +323,15 @@ Select a built-in tuning by its `\stick...` variable. Open strings (or, really, 
 
 ### Custom tunings
 
-**Build one with `\makeStickTuning`**: give it a name and two SPN pitch lists
-(melody then bass), ordering pitches from player's left -> player's right. Assign it to
-a variable and use it anywhere a tuning is accepted; its name is available to
+**Build one with `\makeStickTuning`**: give it a name and two **chords** of
+open-string pitches (melody then bass), ordering the pitches from player's left
+-> player's right — i.e. the first pitch is the top staff line. Assign it to a
+variable and use it anywhere a tuning is accepted; its name is available to
 `\stickTuningName` (see below):
 
 ```lilypond
-myStickTuning = \makeStickTuning "My Stick Tuning" #'("D4" "A3" "E3" "B2" "F#2" "C#2") 
-                                                   #'("C1" "G1" "D2" "A2" "E3" "B3")
+myStickTuning = \makeStickTuning "My Stick Tuning" <d' a e b, fis, cis,>
+                                                   <c,, g,, d, a, e b>
 
 melody = {\clef "treble_8" a1}
 bass = {\clef "bass_8" a1}
@@ -342,9 +343,8 @@ bass = {\clef "bass_8" a1}
 }
 ```
 
-Open strings must be valid scientific pitch notation (a letter, optional `#`/`b`,
-and an octave number) — `\makeStickTuning` rejects anything else, including a
-missing octave like `"C"`.
+The pitches are ordinary LilyPond pitches — the same language you write the notes
+in — so LilyPond checks them for you; there's nothing extra to get right.
 
 **Inline, without a variable**: for a one-off, give `stickTuning` the pair of
 lists directly, or a single side's list on a lone staff:
